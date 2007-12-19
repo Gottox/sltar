@@ -1,4 +1,4 @@
-/* cmarkdown
+/* sltar - suckless tar
  * Copyright (C) <2007> Enno boland <g s01 de>
  *
  * See LICENSE for further informations
@@ -8,8 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#define USAGE { puts("tar [xt]"); exit(EXIT_FAILURE); }
 
 enum Header {
 	MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136,
@@ -23,8 +21,10 @@ int main(int argc, char *argv[]) {
 	FILE *f;
 
 	if((argc != 2 || (a = argv[1][0]) == '\0') ||
-			argv[1][1] != '\0' || (a != 't' && a != 'x'))
-		USAGE;
+			argv[1][1] != '\0' || (a != 't' && a != 'x')) {
+		puts("sltar-" VERSION " - suckless tar\nsltar [xt]");
+		exit(EXIT_FAILURE);
+	}
 	lname[100] = fname[100] = '\0';
 	for(l = 0, f = NULL; fread(b,END,1,stdin); l -= END) {
 		 if(l <= 0) {
