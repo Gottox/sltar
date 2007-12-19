@@ -25,12 +25,12 @@ int main(int argc, char *argv[]) {
 		fputs("sltar-" VERSION " - suckless tar\nsltar [xt]",stderr);
 		return EXIT_FAILURE;
 	}
-	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END) {
+	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END)
 		 if(l <= 0) {
 			if(*b == '\0')
 				break;
 			memcpy(fname,b,100);
-			memcpy(lname,b+LINK,100);
+			memcpy(lname,b + LINK,100);
 			l = strtoull(b + SIZE,0,8) + END;
 			if(a == 't') {
 				puts(fname);
@@ -58,8 +58,8 @@ int main(int argc, char *argv[]) {
 				if(mkdir(fname,(mode_t) strtoull(b + MODE,0,8)))
 					perror(fname);
 				break;
-			case '4': /* block device */
 			case '3': /* char device */
+			case '4': /* block device */
 				/* TODO */
 				break;
 			case '6': /* fifo */
@@ -73,7 +73,6 @@ int main(int argc, char *argv[]) {
 			perror(fname);
 			break;
 		}
-	}
 	if(f)
 		fclose(f);
 	return EXIT_SUCCESS;
