@@ -1,4 +1,4 @@
-# sltar - a minimal implementation of tar
+# sltar - suckless tar
 # (c) 2007 Enno Boland
 
 include config.mk
