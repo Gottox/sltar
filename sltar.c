@@ -22,8 +22,8 @@ int main(int argc, char *argv[]) {
 
 	if((argc != 2 || (a = argv[1][0]) == '\0') ||
 			argv[1][1] != '\0' || (a != 't' && a != 'x')) {
-		puts("sltar-" VERSION " - suckless tar\nsltar [xt]");
-		exit(EXIT_FAILURE);
+		fputs("sltar-" VERSION " - suckless tar\nsltar [xt]",stderr);
+		return EXIT_FAILURE;
 	}
 	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END) {
 		 if(l <= 0) {
