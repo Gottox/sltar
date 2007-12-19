@@ -1,0 +1,20 @@
+.TH sltar 1 sltar\-VERSION
+.SH NAME
+sltar \- suckless tar
+.SH SYNOPSIS
+.B sltar
+.RB [ tx ]
+.SH DESCRIPTION
+sltar is a minimal implementation of tar.
+.SH OPTIONS
+.TP
+.B x
+extract tarball from stdin
+.TP
+.B t
+lists all files in tarball from stdin
+.SH BUGS
+sltar cannot create special files like devices,
+sockets, or fifos.
+
+sltar does not change permissions.
