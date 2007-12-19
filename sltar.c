@@ -18,15 +18,14 @@ enum Header {
 int main(int argc, char *argv[]) {
 	int a, l;
 	char b[END],fname[101],lname[101];
-	FILE *f;
+	FILE *f = 0;
 
 	if((argc != 2 || (a = argv[1][0]) == '\0') ||
 			argv[1][1] != '\0' || (a != 't' && a != 'x')) {
 		puts("sltar-" VERSION " - suckless tar\nsltar [xt]");
 		exit(EXIT_FAILURE);
 	}
-	lname[100] = fname[100] = '\0';
-	for(l = 0, f = NULL; fread(b,END,1,stdin); l -= END) {
+	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END) {
 		 if(l <= 0) {
 			if(*b == '\0')
 				break;
@@ -39,7 +38,7 @@ int main(int argc, char *argv[]) {
 			}
 			if(f) {
 				fclose(f);
-				f = NULL;
+				f = 0;
 			}
 			unlink(fname);
 			switch(b[TYPE]) {
@@ -67,7 +66,7 @@ int main(int argc, char *argv[]) {
 				/* TODO */
 				break;
 			default:
-				puts("not supported filetype");
+				fputs("not supported filetype\n",stderr);
 			}
 		}
 		else if(a == 'x' && f && !fwrite(b,l > 512 ? END : l,1,f)) {
