@@ -11,8 +11,7 @@
 
 enum Header {
 	MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136,
-	TYPE = 156, LINK = 157, DEVMAJOR = 329, DEVMINOR = 337,
-	END = 512
+	TYPE = 156, LINK = 157, MAJ = 329, MIN = 337, END = 512
 };
 
 int main(int argc, char *argv[]) {
@@ -22,7 +21,7 @@ int main(int argc, char *argv[]) {
 
 	if((argc != 2 || (a = argv[1][0]) == '\0') ||
 			argv[1][1] != '\0' || (a != 't' && a != 'x')) {
-		fputs("sltar-" VERSION " - suckless tar\nsltar [xt]",stderr);
+		fputs("sltar-" VERSION " - suckless tar\nsltar [xt]\n",stderr);
 		return EXIT_FAILURE;
 	}
 	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END)
@@ -43,7 +42,7 @@ int main(int argc, char *argv[]) {
 			unlink(fname);
 			switch(b[TYPE]) {
 			case '0': /* file */
-				if(!(f = fopen(b,"w")))
+				if(!(f = fopen(fname,"w")) || chmod(fname,strtoul(b + MODE,0,8)))
 					perror(fname);
 				break;
 			case '1': /* hardlink */
@@ -60,14 +59,17 @@ int main(int argc, char *argv[]) {
 				break;
 			case '3': /* char device */
 			case '4': /* block device */
-				/* TODO */
+				mknod(fname, (b[TYPE] == '3' ? S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
+						makedev(strtoul(b + MAJ,0,8),
+							strtoul(b + MIN,0,8)));
 				break;
 			case '6': /* fifo */
-				/* TODO */
+				mknod(fname, S_IFIFO | strtoull(b + MODE,0,8), 0);
 				break;
 			default:
 				fputs("not supported filetype\n",stderr);
 			}
+			chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8));
 		}
 		else if(a == 'x' && f && !fwrite(b,l > 512 ? END : l,1,f)) {
 			perror(fname);
