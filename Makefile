@@ -32,7 +32,7 @@ clean:
 dist: clean
 	@echo creating dist tarball
 	@mkdir -p ${TARGET}-${VERSION}
-	@cp -R LICENSE Makefile \
+	@cp -R LICENSE Makefile config.mk \
 		${TARGET}.1 ${SRC} ${TARGET}-${VERSION}
 	@tar -cf ${TARGET}-${VERSION}.tar ${TARGET}-${VERSION}
 	@gzip ${TARGET}-${VERSION}.tar
