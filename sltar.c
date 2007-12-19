@@ -1,9 +1,13 @@
+/* cmarkdown
+ * Copyright (C) <2007> Enno boland <g s01 de>
+ *
+ * See LICENSE for further informations
+ */
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #define USAGE { puts("tar [xt]"); exit(EXIT_FAILURE); }
 
@@ -61,13 +65,14 @@ int main(int argc, char *argv[]) {
 				case '6': /* fifo */
 					break;
 				default:
-					fprintf(stderr,"%s: type `%c` is not supported",fname,b[TYPE]);
+					puts("not supported filetype");
 				}
 			}
 			l = strtoull(b+SIZE,0,8)+END;
 		}
-		else if(a == 'x' && f) {
-			
+		else if(a == 'x' && f && !fwrite(b,END,1,f)) {
+			perror(fname);
+			break;
 		}
 	}
 	if(f)
