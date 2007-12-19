@@ -1,11 +1,11 @@
-# tar - a minimal implementation of tar
+# sltar - a minimal implementation of tar
 # (c) 2007 Enno Boland
 
 include config.mk
 
-SRC = tar.c
+SRC = sltar.c
 OBJ = ${SRC:.c=.o}
-TARGET = tar
+TARGET = sltar
 
 all: options ${TARGET}
 
