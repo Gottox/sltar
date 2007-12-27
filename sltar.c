@@ -59,12 +59,14 @@ int main(int argc, char *argv[]) {
 				break;
 			case '3': /* char device */
 			case '4': /* block device */
-				mknod(fname, (b[TYPE] == '3' ? S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
+				if(mknod(fname, (b[TYPE] == '3' ? S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
 						makedev(strtoul(b + MAJ,0,8),
-							strtoul(b + MIN,0,8)));
+							strtoul(b + MIN,0,8))))
+					perror(fname);
 				break;
 			case '6': /* fifo */
-				mknod(fname, S_IFIFO | strtoull(b + MODE,0,8), 0);
+				if(mknod(fname, S_IFIFO | strtoul(b + MODE,0,8), 0))
+					perror(fname);
 				break;
 			default:
 				fputs("not supported filetype\n",stderr);
