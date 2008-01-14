@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 			unlink(fname);
 			switch(b[TYPE]) {
 			case '0': /* file */
-				if(!(f = fopen(fname,"w")) || chmod(fname,strtoul(b + MODE,0,8)))
+				if(!(f = fopen(fname,"w")))
 					perror(fname);
 				break;
 			case '1': /* hardlink */
@@ -71,7 +71,10 @@ int main(int argc, char *argv[]) {
 			default:
 				fputs("not supported filetype\n",stderr);
 			}
-			chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8));
+			if(chmod(fname,strtoul(b + MODE,0,8)))
+				perror(fname);
+			if(getuid() == 0 && chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8)))
+				perror(fname);
 		}
 		else if(a == 'x' && f && !fwrite(b,l > 512 ? END : l,1,f)) {
 			perror(fname);
