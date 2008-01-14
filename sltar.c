@@ -69,9 +69,10 @@ int main(int argc, char *argv[]) {
 					perror(fname);
 				break;
 			default:
-				fputs("not supported filetype\n",stderr);
+				fprintf(stderr,"not supported filetype %c\n",b[TYPE]);
 			}
-			chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8));
+			if(getuid() == 0 && chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8)))
+				perror(fname);
 		}
 		else if(a == 'x' && f && !fwrite(b,l > 512 ? END : l,1,f)) {
 			perror(fname);
