@@ -13,17 +13,15 @@ enum Header {
 	MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136,
 	TYPE = 156, LINK = 157, MAJ = 329, MIN = 337, END = 512
 };
-
-int main(int argc, char *argv[]) {
-	int a, l;
+int c() {
+	fputs("Creating tars does not work yet\n", stderr);
+	return EXIT_FAILURE;
+}
+int xt(char a) {
+	int l;
 	char b[END],fname[101],lname[101];
-	FILE *f = 0;
+	FILE *f = NULL;
 
-	if((argc != 2 || (a = argv[1][0]) == '\0') ||
-			argv[1][1] != '\0' || (a != 't' && a != 'x')) {
-		fputs("sltar-" VERSION " - suckless tar\nsltar [xt]\n",stderr);
-		return EXIT_FAILURE;
-	}
 	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END)
 		 if(l <= 0) {
 			if(*b == '\0')
@@ -81,4 +79,21 @@ int main(int argc, char *argv[]) {
 	if(f)
 		fclose(f);
 	return EXIT_SUCCESS;
+}
+
+int main(int argc, char *argv[]) {
+	char a = 0;
+
+	if(argc == 2 && argv[1][0] != 0 && argv[1][1] == 0)
+		a = argv[1][0];
+	switch(a) {
+	case 'c':
+		return c();
+	case 'x':
+	case 't':
+		return xt(a);
+	default:
+		fputs("sltar-" VERSION " - suckless tar\nsltar [ctx]\n",stderr);
+		return EXIT_SUCCESS;
+	}
 }
