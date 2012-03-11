@@ -8,92 +8,178 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <limits.h>
+#include <ftw.h>
+#include <grp.h>
+#include <pwd.h>
+
+#define MIN(a, b) (((a)<(b))?(a):(b))
 
 enum Header {
-	MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136,
-	TYPE = 156, LINK = 157, MAJ = 329, MIN = 337, END = 512
+	NAME=0, MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136, CHKSUM=148,
+	TYPE = 156, LINK = 157, MAGIC=257, VERS=263, UNAME=265, GNAME=297, MAJ = 329, 
+	MIN = 337, END = 512
 };
-int c() {
-	fputs("Creating tars does not work yet\n", stderr);
-	return EXIT_FAILURE;
-}
-int xt(char a) {
-	int l;
-	char b[END],fname[101],lname[101];
-	FILE *f = NULL;
 
-	for(lname[100] = fname[100] = l = 0; fread(b,END,1,stdin); l -= END)
-		 if(l <= 0) {
-			if(*b == '\0')
-				break;
-			memcpy(fname,b,100);
-			memcpy(lname,b + LINK,100);
-			l = strtoull(b + SIZE,0,8) + END;
-			if(a == 't') {
-				puts(fname);
-				continue;
-			}
-			if(f) {
-				fclose(f);
-				f = 0;
-			}
-			unlink(fname);
-			switch(b[TYPE]) {
-			case '0': /* file */
-				if(!(f = fopen(fname,"w")) || chmod(fname,strtoul(b + MODE,0,8)))
-					perror(fname);
-				break;
-			case '1': /* hardlink */
-				if(!link(lname,fname))
-					perror(fname);
-				break;
-			case '2': /* symlink */
-				if(!symlink(lname,fname))
-					perror(fname);
-				break;
-			case '5': /* directory */
-				if(mkdir(fname,(mode_t) strtoull(b + MODE,0,8)))
-					perror(fname);
-				break;
-			case '3': /* char device */
-			case '4': /* block device */
-				if(mknod(fname, (b[TYPE] == '3' ? S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
-						makedev(strtoul(b + MAJ,0,8),
-							strtoul(b + MIN,0,8))))
-					perror(fname);
-				break;
-			case '6': /* fifo */
-				if(mknod(fname, S_IFIFO | strtoul(b + MODE,0,8), 0))
-					perror(fname);
-				break;
-			default:
-				fprintf(stderr,"not supported filetype %c\n",b[TYPE]);
-			}
-			if(getuid() == 0 && chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8)))
-				perror(fname);
-		}
-		else if(a == 'x' && f && !fwrite(b,l > 512 ? END : l,1,f)) {
+enum Type {
+	REG = '0', HARDLINK = '1', SYMLINK = '2', CHARDEV='3', BLOCKDEV='4',
+	DIRECTORY='5', FIFO='6' 
+};
+
+int archive(const char* path, const struct stat* sta, int type){
+	char b[END];
+	FILE *f = NULL;
+	struct stat s = *sta, *st = &s;
+	lstat(path, st);
+	memset(b, 0, END);
+	snprintf(b+NAME, 100, "%s", path);
+	snprintf(b+MODE, 8, "%.7o", (unsigned)st->st_mode&0777);
+	snprintf(b+UID,  8, "%.7o", (unsigned)st->st_uid);
+	snprintf(b+GID,  8, "%.7o", (unsigned)st->st_gid);
+	snprintf(b+SIZE, 12, "%.11o", 0);
+	snprintf(b+MTIME,12, "%.11o", (unsigned)st->st_mtime);
+	memcpy(b+MAGIC, "ustar", strlen("ustar")+1);
+	memcpy(b+VERS, "00", strlen("00"));
+	struct passwd *pw = getpwuid(st->st_uid);
+	snprintf(b+UNAME, 32, "%s", pw->pw_name);
+	struct group *gr = getgrgid(st->st_gid);
+	snprintf(b+GNAME, 32, "%s", gr->gr_name);	
+	mode_t mode = st->st_mode;
+	if(S_ISREG(mode)){
+		b[TYPE] = REG;
+		snprintf(b+SIZE, 12, "%.11o", (unsigned)st->st_size);
+		f = fopen(path, "r");
+	}else if(S_ISDIR(mode)){
+		b[TYPE] = DIRECTORY;
+	}else if(S_ISLNK(mode)){
+		b[TYPE] = SYMLINK;
+		readlink(path, b+LINK, 99);
+	}else if(S_ISCHR(mode)){
+		b[TYPE] = CHARDEV;
+		snprintf(b+MAJ,  8, "%.7o", (unsigned)major(st->st_dev));
+		snprintf(b+MIN,  8, "%.7o", (unsigned)minor(st->st_dev));
+	}else if(S_ISBLK(mode)){
+		b[TYPE] = BLOCKDEV;
+		snprintf(b+MAJ,  8, "%.7o", (unsigned)major(st->st_dev));
+		snprintf(b+MIN,  8, "%.7o", (unsigned)minor(st->st_dev));
+	}else if(S_ISFIFO(mode)){
+		b[TYPE] = FIFO;
+	}
+	unsigned sum=0, x;
+	memset(b+CHKSUM, ' ', 8);
+	for(x=0; x<END; x++)
+		sum+=b[x];
+	snprintf(b+CHKSUM, 8, "%.7o", sum);
+	fwrite(b, END, 1, stdout);
+	if(!f)
+		return 0;
+	int l;
+	while((l = fread(b, 1, END, f))>0){
+		if(l<END)
+			memset(b+l, 0, END-l);
+		fwrite(b, END, 1, stdout);
+	}
+	fclose(f);
+	return 0;	
+}
+
+int unarchive(char *fname, int l, char b[END]){
+	static char lname[101] = {0};
+	FILE *f = NULL;
+	memcpy(lname, b+LINK, 100);
+
+	unlink(fname);
+	switch(b[TYPE]) {
+	case REG:
+		if(!(f = fopen(fname,"w")) || chmod(fname,strtoul(b + MODE,0,8)))
 			perror(fname);
-			break;
-		}
+		break;
+	case HARDLINK:
+		if(!link(lname,fname))
+			perror(fname);
+		break;
+	case SYMLINK:
+		if(!symlink(lname,fname))
+			perror(fname);
+		break;
+	case DIRECTORY:
+		if(mkdir(fname,(mode_t) strtoull(b + MODE,0,8)))
+			perror(fname);
+		break;
+	case CHARDEV:
+	case BLOCKDEV:
+		if(mknod(fname, (b[TYPE] == '3' ? S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
+				makedev(strtoul(b + MAJ,0,8),
+					strtoul(b + MIN,0,8))))
+			perror(fname);
+		break;
+	case FIFO:
+		if(mknod(fname, S_IFIFO | strtoul(b + MODE,0,8), 0))
+			perror(fname);
+		break;
+	default:
+		fprintf(stderr,"not supported filetype %c\n",b[TYPE]);
+	}
+	if(getuid() == 0 && chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8)))
+		perror(fname);
+
+	for(;l>0; l-=END){
+		fread(b, END, 1, stdin);
+		if(f)
+			fwrite(b, MIN(l, 512), 1, f);
+	}
 	if(f)
 		fclose(f);
+	return 0;
+}
+
+int print(char * fname, int l, char b[END]){
+	puts(fname);
+	for(;l>0; l-=END)
+		fread(b, END, 1, stdin);
+	return 0;
+}
+
+int c(char * dir) {
+	ftw(dir, archive, 128);//OPEN_MAX);
 	return EXIT_SUCCESS;
 }
 
-int main(int argc, char *argv[]) {
-	char a = 0;
+int xt(int (*fn)(char*, int, char[END])) {
+	int l;
+	char b[END],fname[101];
+	fname[100] = '\0';
 
-	if(argc == 2 && argv[1][0] != 0 && argv[1][1] == 0)
-		a = argv[1][0];
-	switch(a) {
-	case 'c':
-		return c();
-	case 'x':
-	case 't':
-		return xt(a);
-	default:
-		fputs("sltar-" VERSION " - suckless tar\nsltar [ctx]\n",stderr);
-		return EXIT_SUCCESS;
+	while(fread(b, END, 1, stdin)){
+		if(*b == '\0')
+			break;
+		memcpy(fname, b, 100);
+		l = strtol(b+SIZE, 0, 8);
+		fn(fname, l, b);
 	}
+	return EXIT_SUCCESS;
+}
+
+void usage(){
+	fputs("sltar-" VERSION " - suckless tar\nsltar [ctx]\n",stderr);
+	exit(EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[]) {
+	if(argc < 2 || argc > 3 || strlen(argv[1])!=1)
+		usage();
+	switch(argv[1][0]) {
+	case 'c':
+		if(argc<3)
+			usage();
+		return c(argv[2]);
+	case 'x':
+		return xt(unarchive);
+	case 't':
+		return xt(print);
+	default:
+		usage();
+	}
+	return EXIT_FAILURE;
 }
