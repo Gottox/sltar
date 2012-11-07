@@ -29,12 +29,12 @@ clean:
 	@echo cleaning
 	@rm -f -- ${OBJ} ${TARGET} ${TARGET}-${VERSION}.tar.gz
 
-dist: clean
+dist: sltar
 	@echo creating dist tarball
 	@mkdir -p ${TARGET}-${VERSION}
 	@cp -R LICENSE Makefile config.mk \
 		${TARGET}.1 ${SRC} ${TARGET}-${VERSION}
-	@tar -cf ${TARGET}-${VERSION}.tar ${TARGET}-${VERSION}
+	@./sltar c ${TARGET}-${VERSION} > ${TARGET}-${VERSION}.tar
 	@gzip ${TARGET}-${VERSION}.tar
 	@rm -rf ${TARGET}-${VERSION}
 
