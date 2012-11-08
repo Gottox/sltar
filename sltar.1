@@ -4,6 +4,10 @@ sltar \- suckless tar
 .SH SYNOPSIS
 .B sltar
 .RB [ tx ]
+.TP
+.B sltar
+.RB c
+.RB path
 .SH DESCRIPTION
 sltar is a minimal implementation of tar.
 .SH OPTIONS
@@ -13,5 +17,8 @@ extract tarball from stdin
 .TP
 .B t
 list all files in tarball from stdin
+.TP
+.B c
+creates tarball from path and prints it to stdout
 .SH BUGS
 Please report any bugs.
