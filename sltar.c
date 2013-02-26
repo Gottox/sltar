@@ -17,7 +17,7 @@
 #define MIN(a, b) (((a)<(b))?(a):(b))
 
 enum Header {
-	NAME=0, MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136, CHKSUM=148,
+	NAME=0, MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136, CHK=148,
 	TYPE = 156, LINK = 157, MAGIC=257, VERS=263, UNAME=265, GNAME=297, MAJ = 329, 
 	MIN = 337, END = 512
 };
@@ -27,7 +27,13 @@ enum Type {
 	DIRECTORY='5', FIFO='6' 
 };
 
-int archive(const char* path, const struct stat* sta, int type){
+void chksum(const char *b, char *chk) {
+	unsigned sum=0, i;
+	for(i=0; i<END; i++)
+		sum += (i >= CHK && i < CHK+8) ? ' ' : b[i];
+	snprintf(chk, 8, "%.7o", sum);
+}
+int c(const char* path, const struct stat* sta, int type){
 	char b[END];
 	FILE *f = NULL;
 	struct stat s = *sta, *st = &s;
@@ -66,11 +72,7 @@ int archive(const char* path, const struct stat* sta, int type){
 	}else if(S_ISFIFO(mode)){
 		b[TYPE] = FIFO;
 	}
-	unsigned sum=0, x;
-	memset(b+CHKSUM, ' ', 8);
-	for(x=0; x<END; x++)
-		sum+=b[x];
-	snprintf(b+CHKSUM, 8, "%.7o", sum);
+	chksum(b, b+CHK);
 	fwrite(b, END, 1, stdout);
 	if(!f)
 		return 0;
@@ -84,8 +86,8 @@ int archive(const char* path, const struct stat* sta, int type){
 	return 0;	
 }
 
-int unarchive(char *fname, int l, char b[END]){
-	static char lname[101] = {0};
+int x(char *fname, int l, char b[END]){
+	static char lname[101] = {0}, chk[8] = {0};
 	FILE *f = NULL;
 	memcpy(lname, b+LINK, 100);
 
@@ -123,6 +125,9 @@ int unarchive(char *fname, int l, char b[END]){
 	}
 	if(getuid() == 0 && chown(fname, strtoul(b + UID,0,8),strtoul(b + GID,0,8)))
 		perror(fname);
+	chksum(b, chk);
+	if(strncmp(b+CHK, chk, 8))
+		fputs("Hello World!", stderr);
 
 	for(;l>0; l-=END){
 		fread(b, END, 1, stdin);
@@ -134,19 +139,14 @@ int unarchive(char *fname, int l, char b[END]){
 	return 0;
 }
 
-int print(char * fname, int l, char b[END]){
+int t(char * fname, int l, char b[END]){
 	puts(fname);
 	for(;l>0; l-=END)
 		fread(b, END, 1, stdin);
 	return 0;
 }
 
-int c(char * dir) {
-	ftw(dir, archive, 128);//OPEN_MAX);
-	return EXIT_SUCCESS;
-}
-
-int xt(int (*fn)(char*, int, char[END])) {
+int walk(int (*fn)(char*, int, char[END])) {
 	int l;
 	char b[END],fname[101];
 	fname[100] = '\0';
@@ -163,7 +163,7 @@ int xt(int (*fn)(char*, int, char[END])) {
 
 void usage(){
 	fputs("sltar-" VERSION " - suckless tar\nsltar [ctx]\n",stderr);
-	exit(EXIT_SUCCESS);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[]) {
@@ -171,13 +171,12 @@ int main(int argc, char *argv[]) {
 		usage();
 	switch(argv[1][0]) {
 	case 'c':
-		if(argc<3)
-			usage();
-		return c(argv[2]);
+		if(argc<3) usage();
+		return ftw(argv[2], c, OPEN_MAX) ? EXIT_FAILURE : EXIT_SUCCESS;
 	case 'x':
-		return xt(unarchive);
+		return walk(x);
 	case 't':
-		return xt(print);
+		return walk(t);
 	default:
 		usage();
 	}
