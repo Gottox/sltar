@@ -5,7 +5,6 @@ include config.mk
 
 SRC = sltar.c
 OBJ = ${SRC:.c=.o}
-TARGET = sltar
 
 all: options ${TARGET}
 
@@ -29,7 +28,7 @@ clean:
 	@echo cleaning
 	@rm -f -- ${OBJ} ${TARGET} ${TARGET}-${VERSION}.tar.gz
 
-dist: sltar
+dist: clean sltar
 	@echo creating dist tarball
 	@mkdir -p ${TARGET}-${VERSION}
 	@cp -R LICENSE Makefile config.mk \

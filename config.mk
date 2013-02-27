@@ -1,9 +1,10 @@
 # sltar version
-VERSION = 0.4
+VERSION = 0.5
 
 # Customize below to fit your system
 
 # paths
+TARGET = sltar
 PREFIX = /usr/local
 MANPREFIX = ${PREFIX}/share/man
 
