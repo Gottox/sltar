@@ -1,5 +1,5 @@
 /* sltar - a simple tar
- * © 2013 Enno Boland <g s01 de>
+ * © 2014 Enno Boland <g s01 de>
  *
  * See LICENSE for further informations
  */
@@ -14,31 +14,30 @@
 #include <pwd.h>
 
 enum Header {
-	NAME=0, MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136, CHK=148,
-	TYPE = 156, LINK = 157, MAGIC=257, VERS=263, UNAME=265, GNAME=297, MAJ = 329, 
-	MIN = 337, END = 512
+	NAME = 0, MODE = 100, UID = 108, GID = 116, SIZE = 124, MTIME = 136,
+	CHK = 148, TYPE = 156, LINK = 157, MAGIC = 257, VERS = 263, UNAME = 265,
+	GNAME = 297, MAJ = 329, MIN = 337, END = 512
 };
 
 enum Type {
-	REG = '0', HARDLINK = '1', SYMLINK = '2', CHARDEV='3', BLOCKDEV='4',
-	DIRECTORY='5', FIFO='6' 
+	REG = '0', HARDLINK = '1', SYMLINK = '2', CHARDEV = '3', BLOCKDEV = '4',
+	DIRECTORY = '5', FIFO = '6'
 };
 
 void chksum(const char b[END], char *chk) {
-	unsigned sum=0, i;
-	for(i=0; i<END; i++)
+	unsigned sum = 0, i;
+	for(i = 0; i<END; i++)
 		sum += (i >= CHK && i < CHK+8) ? ' ' : b[i];
 	snprintf(chk, 8, "%.7o", sum);
 }
 
-int c_file(const char* path, const struct stat* st, int type, struct FTW *ftw) {
+int c_file(const char* path, const struct stat* st, int type) {
 	int l;
-	char b[END];
+	char b[END] = { 0 };
 	FILE *f = NULL;
 	struct passwd *pw = getpwuid(st->st_uid);
 	struct group *gr = getgrgid(st->st_gid);
 
-	memset(b, 0, END);
 	memset(b+SIZE, '0', 12);
 	strcpy(b+MAGIC, "ustar");
 	strcpy(b+VERS, "00");
@@ -72,15 +71,14 @@ int c_file(const char* path, const struct stat* st, int type, struct FTW *ftw) {
 	}
 	chksum(b, b+CHK);
 	fwrite(b, END, 1, stdout);
-	if(!f)
-		return 0;
+	if(!f) return 0;
 	while((l = fread(b, 1, END, f)) > 0) {
 		if(l<END)
-			memset(b+l, 0, END-l);
+			memset(b + l, 0, END - l);
 		fwrite(b, END, 1, stdout);
 	}
 	fclose(f);
-	return 0;	
+	return 0;
 }
 
 int x(char *fname, int l, char b[END]){
@@ -106,25 +104,25 @@ int x(char *fname, int l, char b[END]){
 		break;
 	case CHARDEV:
 	case BLOCKDEV:
-		r = mknod(fname, (b[TYPE] == '3' ?
+		r = mknod(fname, (b[TYPE] == CHARDEV ?
 				S_IFCHR : S_IFBLK) | strtoul(b + MODE,0,8),
 					makedev(strtoul(b + MAJ,0,8),
 						strtoul(b + MIN,0,8)));
 		break;
 	case FIFO:
-		r = mknod(fname, S_IFIFO | strtoul(b + MODE,0,8), 0);
+		r = mknod(fname, S_IFIFO | strtoul(b + MODE, 0, 8), 0);
 		break;
 	default:
-		fprintf(stderr,"%s: not supported filetype %c\n", fname, b[TYPE]);
+		fprintf(stderr,"%s: unsupported filetype %c\n", fname, b[TYPE]);
 	}
-	if(r || (getuid() == 0 &&chown(fname, strtoul(b + UID,0,8),
-					strtoul(b + GID,0,8))))
+	if(r || (getuid() == 0 && chown(fname, strtoul(b + UID, 0, 8),
+					strtoul(b + GID, 0, 8))))
 		perror(fname);
 	chksum(b, chk);
 	if(strncmp(b+CHK, chk, 8))
 		fprintf(stderr, "%s: chksum failed\n", fname);
 
-	for(;l>0; l-=END){
+	for(; l > 0; l -= END){
 		fread(b, END, 1, stdin);
 		if(f) fwrite(b, MIN(l, 512), 1, f);
 	}
@@ -134,15 +132,14 @@ int x(char *fname, int l, char b[END]){
 
 int t(char *fname, int l, char b[END]){
 	puts(fname);
-	for(;l>0; l-=END)
+	for(; l > 0; l -= END)
 		fread(b, END, 1, stdin);
 	return 0;
 }
 
 int tar(int (*fn)(char*, int, char[END])) {
 	int l;
-	char b[END],fname[101];
-	fname[100] = '\0';
+	char b[END], fname[101] = { 0 };
 
 	while(fread(b, END, 1, stdin)){
 		if(*b == '\0')
@@ -160,30 +157,32 @@ int c(char *p) {
 	if(lstat(p, &st))
 		perror(p);
 	else if(S_ISDIR(st.st_mode))
-		return nftw(p, c_file, OPEN_MAX, FTW_PHYS);
+		return ftw(p, c_file, 1024);
 	else
-		return c_file(p, &st, 0, 0);
+		return c_file(p, &st, 0);
 	return 1;
 }
 
-void usage(){
-	fputs("sltar-" VERSION " - simple tar\nsltar [ctx]\n", stderr);
+void usage() {
+	fputs("sltar-" VERSION " - simple tar\n"
+			"Usage: sltar [tx]\n"
+			"       sltar c PATH ...\n", stderr);
 	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[]) {
-	if(argc < 2 || argc > 3 || strlen(argv[1])!=1)
+	if(argc < 2 || strlen(argv[1]) != 1)
 		usage();
 	switch(argv[1][0]) {
 	case 'c':
-		if(argc<3) usage();
+		if(argc < 3) usage();
 		while(argc-- >= 3)
 			if(c(argv[argc])) return EXIT_FAILURE;
 		return EXIT_SUCCESS;
 	case 'x':
-		return tar(x);
+		if(argc == 2) return tar(x);
 	case 't':
-		return tar(t);
+		if(argc == 2) return tar(t);
 	default:
 		usage();
 	}
