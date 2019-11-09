@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/sysmacros.h>
 #include <ftw.h>
 #include <grp.h>
 #include <pwd.h>
