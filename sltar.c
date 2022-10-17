@@ -33,7 +33,7 @@ void chksum(const char b[END], char *chk) {
 }
 
 int c_file(const char* path, const struct stat* st, int type) {
-	int l;
+	int l = END;
 	char b[END] = { 0 };
 	FILE *f = NULL;
 	struct passwd *pw = getpwuid(st->st_uid);
@@ -71,13 +71,12 @@ int c_file(const char* path, const struct stat* st, int type) {
 		b[TYPE] = FIFO;
 	}
 	chksum(b, b+CHK);
-	fwrite(b, END, 1, stdout);
 	if(!f) return 0;
-	while((l = fread(b, 1, END, f)) > 0) {
+	do {
 		if(l<END)
 			memset(b + l, 0, END - l);
 		fwrite(b, END, 1, stdout);
-	}
+	} while((l = fread(b, 1, END, f)) > 0);
 	fclose(f);
 	return 0;
 }
